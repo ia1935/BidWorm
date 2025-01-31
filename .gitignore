@@ -1,0 +1,6 @@
+/.idea
+/server/.mvn
+server/pom.xml
+server/mvnw.cmd
+server/mvnw
+server/src/main/resources/application.properties
