@@ -1,10 +1,10 @@
-package com.student.app;
+package com.student.app.bidworm;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class MarketplaceApplicationTests {
+class BidwormApplicationTests {
 
 	@Test
 	void contextLoads() {

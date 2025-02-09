@@ -3,8 +3,4 @@
 server/pom.xml
 server/mvnw.cmd
 server/mvnw
-server/src/main/resources/application.properties
-/marketplace/.mvn
-marketplace/mvnw
-marketplace/pom.xml
-marketplace/mvnw.cmd
+

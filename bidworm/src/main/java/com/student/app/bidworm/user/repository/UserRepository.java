@@ -1,7 +1,6 @@
-package com.student.app.users.repository;
+package com.student.app.bidworm.user.repository;
 
-
-import com.student.app.users.model.User;
+import com.student.app.bidworm.user.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,5 +12,8 @@ public interface UserRepository
         extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
+
     boolean existsByEmail(String email);
+
+    Optional<User> findByVerificationToken(String token);
 }
