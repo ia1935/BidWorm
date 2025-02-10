@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:13
+    container_name: bidworm-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}  # Refers to POSTGRES_USER in .env file
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Refers to POSTGRES_PASSWORD in .env file
+      POSTGRES_DB: ${POSTGRES_DB}  # Refers to POSTGRES_DB in .env file
+    ports:
+      - "5432:5432"  # Exposes PostgreSQL on port 5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data  # Persists data in a Docker volume
+
+  app:
+    build: .
+    container_name: bidworm-backend
+    ports:
+      - "8080:8080"  # Exposes Spring Boot app on port 8080
+    depends_on:
+      - db  # Ensures DB starts before the app
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATABASE_URL}  # Uses JDBC URL from .env
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}  # Uses username from .env
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}  # Uses password from .env
+
+volumes:
+  postgres-data:  # Docker volume to persist database data

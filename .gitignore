@@ -4,3 +4,4 @@ server/pom.xml
 server/mvnw.cmd
 server/mvnw
 
+.env
