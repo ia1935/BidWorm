@@ -2,7 +2,7 @@ package com.student.app.bidworm.user.service;
 
 
 import com.student.app.bidworm.user.model.User;
-import com.student.app.bidworm.user.provider.JwtTokenProvider;
+import com.student.app.bidworm.jwt.JwtTokenProvider;
 import com.student.app.bidworm.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class UserService {
@@ -30,6 +29,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    private EmailService emailService;
 
 
     @Autowired
@@ -42,50 +43,31 @@ public class UserService {
 
 
     //signup logic
-    public User registerUser(User user){
-        if (userRepository.existsByEmail(user.getEmail())){
+    public void registerUser(User user) {
+        if (userRepository.existsByEmail(user.getEmail())) {
             throw new IllegalArgumentException("Email already in use");
-
         }
 
         user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
 
-        //Making verification token
-        String token = jwtTokenProvider.getEmailFromToken(user.getEmail());
+        // Generate a new token
+        String token = jwtTokenProvider.generateToken(user.getEmail());
 
-        //token and exp date
+        // Set the token and expiration date
         user.setVerificationToken(token);
         user.setVerificationExpiration(LocalDateTime.now().plusHours(1));
 
-
         userRepository.save(user);
 
-        //sending verification email:
-        sendVerificationEmail(user.getEmail(), token);
-
-        return user;
+        // Sending the verification email
+        emailService.sendVerificationEmail(user.getEmail(), token);
     }
 
 
 
-    //sending the email function
-
-    private void sendVerificationEmail(String email, String token) {
-        //content
-        //replace message link with domain in production
-        String subject = "Please verify your email account at Bidworm";
-        String message = "To verify your email, click the following link:\n"+
-                "http://localhost:8080/users/verify?token="+token;
 
 
-        //sending mail:
-        SimpleMailMessage mailMessage = new SimpleMailMessage();
-        mailMessage.setTo(email);
-        mailMessage.setSubject(subject);
-        mailMessage.setText(message);
-        mailSender.send(mailMessage);
 
-    }
 
 
 
@@ -103,7 +85,7 @@ public class UserService {
             if (passwordEncoder.matches(password, user.getPasswordHash())) {
 
                 // Check if user is not already verified
-                if (!user.isVerified()) {
+                if (!user.getVerified()) {
                     user.setVerified(true); // Set verified to true
                     userRepository.save(user); // Save the updated user to the database
                 }
@@ -141,6 +123,15 @@ public class UserService {
             return true; // Verification successful
         }
         return false; // Invalid token
+    }
+
+
+    //refreshing our token, going to send a new email
+    public void refreshAndUpdateToken(User user,String oldToken) {
+        String newToken = jwtTokenProvider.refreshToken(oldToken);  // Generate new token
+        userRepository.updateVerificationToken(oldToken, newToken);  // Update the database with the new token
+
+        emailService.sendVerificationEmail(user.getEmail(), newToken);
     }
 }
 

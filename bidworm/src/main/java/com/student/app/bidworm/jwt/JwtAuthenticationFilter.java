@@ -1,7 +1,6 @@
 package com.student.app.bidworm.jwt;
 
 
-import com.student.app.bidworm.user.provider.JwtTokenProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,7 +9,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -30,36 +28,52 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
+//        System.out.println("Inside JwtAuthenticationFilter...");
 
-        // Check if the context already contains authentication
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = extractToken(request);
-
+//            System.out.println("Token extracted: " + token);
             if (token != null && jwtTokenProvider.validateToken(token)) {
                 String email = jwtTokenProvider.getEmailFromToken(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+//                System.out.println("User details loaded: " + userDetails);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-                // Set the authentication only if it's not already set
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+//                System.out.println("Authentication set for: " + email);
             }
         }
 
-        // Proceed with the filter chain regardless of authentication
+        // Log filter continuation
+//        System.out.println("Proceeding to next filter...");
         chain.doFilter(request, response);
     }
 
 
 
+
     private String extractToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")){
+
+        // Check Authorization header
+        if (bearerToken!= null && bearerToken.startsWith("Bearer ")) {
+            //            System.out.println("Extracted Token from Header: " + token);
             return bearerToken.substring(7);
         }
-        return null;
 
+        // Fallback: Check query parameter "token"
+        String tokenFromQuery = request.getParameter("token");
+        if (StringUtils.hasText(tokenFromQuery)) {
+//            System.out.println("Extracted Token from Query Parameter: " + tokenFromQuery);
+            return tokenFromQuery;
+        }
+
+        System.out.println("No token found in request");
+        return null;
     }
+
+
 
 }

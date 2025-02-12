@@ -2,7 +2,7 @@ package com.student.app.bidworm.user.controller;
 
 
 import com.student.app.bidworm.user.model.User;
-import com.student.app.bidworm.user.provider.JwtTokenProvider;
+import com.student.app.bidworm.jwt.JwtTokenProvider;
 import com.student.app.bidworm.user.repository.UserRepository;
 import com.student.app.bidworm.user.service.UserService;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,9 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.student.app.bidworm.user.model.LoginResponse;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -32,20 +33,26 @@ public class UserController {
 
 
     @PostMapping("/register")
-    public ResponseEntity<String> registerUser(@RequestBody User user) {
+    public ResponseEntity<Map<String,String>> registerUser(@RequestBody User user) {
+        Map<String,String> response = new HashMap<>();
         try{
+
+
             userService.registerUser(user);
-            return ResponseEntity.ok("Registration Complete! To use Bidworm, " +
-                    "check your email for a verification link!");
+            response.put("message","Registration complete! Check your email for a verification link" +
+                    " to use Bidworm!");
+            return ResponseEntity.ok().body(response);
 
         }catch (IllegalArgumentException e){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            response.put("message","Invalid email or email in use.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
 
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> loginUser(@RequestBody User user) {
+    public ResponseEntity<Map<String,String>> loginUser(@RequestBody User user) {
+        Map<String,String> response = new HashMap<>();
         Optional<User> authenticatedUser = userService.loginUser(user.getEmail(), user.getPassword());
 
         if (authenticatedUser.isPresent()) {
@@ -56,19 +63,17 @@ public class UserController {
             String token = jwtTokenProvider.generateToken(loggedInUser.getEmail());
 
             // Construct the response with token and user information
-            LoginResponse response = new LoginResponse(
-                    token,
-                    loggedInUser.getEmail(),
-                    loggedInUser.getUsername(),
-                    loggedInUser.getUuid() // Assuming these fields exist in your User class
-            );
+            response.put("uuid",loggedInUser.getUuid().toString());
+            response.put("verification_status",loggedInUser.getVerified().toString());
+            response.put("email",loggedInUser.getEmail());
+            response.put("username",loggedInUser.getUsername());
 
             return ResponseEntity.ok(response);
         } else {
             // Return an error response for invalid credentials
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    new LoginResponse("Invalid credentials",null,null,null)
-            );
+            response.put("message","Unable to Login. Incorrect Username or Password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+
         }
     }
 
@@ -85,10 +90,17 @@ public class UserController {
 
     //Email verification endpoint
     @GetMapping("/verify")
-    public ResponseEntity<String> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<Map<String,String>> verifyEmail(@RequestParam("token") String token) {
+
+        Map<String, String> response = new HashMap<>();
+
+
         //token validation
+        System.out.println("Verifying email with token: " + token);
         if(!jwtTokenProvider.validateToken(token)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid or expired token");
+
+            response.put("message", "Invalid token");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
         }
 
         //find user by token
@@ -96,25 +108,31 @@ public class UserController {
 
         if (userOptional.isPresent()) {
             User user = userOptional.get();
+            System.out.println("Found user: " + user.getEmail());
 
+            //handling expiration, sending new mail
             if (user.getVerificationExpiration().isBefore(LocalDateTime.now())){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid or expired token");
+
+                userService.refreshAndUpdateToken(user,token);
+                response.put("message", "Invalid or expired token. Check your email for new token.");
+
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
             }
 
-            user.setVerified(true);
-            user.setVerificationToken(null);
-            userRepository.save(user);
+            if (!user.getVerified()) {
+                user.setVerified(true);
+                userRepository.save(user);
+                System.out.println("User verified successfully.");
 
-            return ResponseEntity.ok("Email Successfully verified");
+            }
+
+
+            response.put("message", "Email successfully verified");
+            return ResponseEntity.ok(response);
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        response.put("message", "User not found");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
 
-
-    }
-
-    @GetMapping
-    String test(){
-        return("Testing");
     }
 
 
